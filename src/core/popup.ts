@@ -890,7 +890,8 @@ async function initializeTemplateFields(currentTabId: number, template: Template
 			const promptVariables = collectPromptVariables(template);
 
 			// If auto-run is enabled and there are prompt variables, use interpreter
-			if (generalSettings.interpreterAutoRun && promptVariables.length > 0) {
+			// Skip auto-run in popup if background processing is enabled (will be handled on save)
+			if (generalSettings.interpreterAutoRun && promptVariables.length > 0 && !generalSettings.interpreterBackgroundProcessing) {
 				try {
 					const interpretBtn = document.getElementById('interpret-btn') as HTMLButtonElement;
 					const modelSelect = document.getElementById('model-select') as HTMLSelectElement;
@@ -1248,9 +1249,10 @@ async function handleClipObsidian(): Promise<void> {
 	}
 
 	try {
+		const promptVars = collectPromptVariables(currentTemplate);
 		const hasPromptVars = generalSettings.interpreterEnabled
 			&& interpretBtn
-			&& collectPromptVariables(currentTemplate).length > 0;
+			&& promptVars.length > 0;
 
 		const shouldProcessInBackground = hasPromptVars
 			&& generalSettings.interpreterBackgroundProcessing
@@ -1275,7 +1277,8 @@ async function handleClipObsidian(): Promise<void> {
 
 			const promptContextTextarea = document.getElementById('prompt-context') as HTMLTextAreaElement;
 			const modelSelect = document.getElementById('model-select') as HTMLSelectElement;
-			const selectedModelId = modelSelect?.value || generalSettings.interpreterModel;
+			const enabledModels = generalSettings.models.filter(m => m.enabled);
+			const selectedModelId = modelSelect?.value || generalSettings.interpreterModel || (enabledModels[0]?.id ?? '');
 
 			const payload = {
 				noteContent: noteContentField.value,
