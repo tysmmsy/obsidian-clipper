@@ -1,7 +1,6 @@
 import browser from './browser-polyfill';
 import { Settings, ModelConfig, PropertyType, HistoryEntry, Provider, Rating } from '../types/types';
 import { debugLog } from './debug';
-import { copyToClipboard } from 'core/popup';
 
 export type { Settings, ModelConfig, PropertyType, HistoryEntry, Provider, Rating };
 
@@ -20,6 +19,8 @@ export let generalSettings: Settings = {
 	providers: [],
 	interpreterEnabled: false,
 	interpreterAutoRun: false,
+	interpreterBackgroundProcessing: true,
+	interpreterNotifications: false,
 	defaultPromptContext: '',
 	propertyTypes: [],
 	readerSettings: {
@@ -76,6 +77,8 @@ interface StorageData {
 		providers?: Provider[];
 		interpreterEnabled?: boolean;
 		interpreterAutoRun?: boolean;
+		interpreterBackgroundProcessing?: boolean;
+		interpreterNotifications?: boolean;
 		defaultPromptContext?: string;
 	};
 	property_types?: PropertyType[];
@@ -111,6 +114,8 @@ export async function loadSettings(): Promise<Settings> {
 		providers: [],
 		interpreterEnabled: false,
 		interpreterAutoRun: false,
+		interpreterBackgroundProcessing: true,
+		interpreterNotifications: false,
 		defaultPromptContext: '',
 		propertyTypes: [],
 		saveBehavior: 'addToObsidian',
@@ -164,6 +169,8 @@ export async function loadSettings(): Promise<Settings> {
 		providers: sanitizedProviders,
 		interpreterEnabled: data.interpreter_settings?.interpreterEnabled ?? defaultSettings.interpreterEnabled,
 		interpreterAutoRun: data.interpreter_settings?.interpreterAutoRun ?? defaultSettings.interpreterAutoRun,
+		interpreterBackgroundProcessing: data.interpreter_settings?.interpreterBackgroundProcessing ?? defaultSettings.interpreterBackgroundProcessing,
+		interpreterNotifications: data.interpreter_settings?.interpreterNotifications ?? defaultSettings.interpreterNotifications,
 		defaultPromptContext: data.interpreter_settings?.defaultPromptContext || defaultSettings.defaultPromptContext,
 		propertyTypes: data.property_types || defaultSettings.propertyTypes,
 		readerSettings: {
@@ -210,6 +217,8 @@ export async function saveSettings(settings?: Partial<Settings>): Promise<void> 
 			providers: generalSettings.providers,
 			interpreterEnabled: generalSettings.interpreterEnabled,
 			interpreterAutoRun: generalSettings.interpreterAutoRun,
+			interpreterBackgroundProcessing: generalSettings.interpreterBackgroundProcessing,
+			interpreterNotifications: generalSettings.interpreterNotifications,
 			defaultPromptContext: generalSettings.defaultPromptContext
 		},
 		property_types: generalSettings.propertyTypes,

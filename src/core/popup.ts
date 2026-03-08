@@ -1248,8 +1248,65 @@ async function handleClipObsidian(): Promise<void> {
 	}
 
 	try {
-		// Handle interpreter if needed
-		if (generalSettings.interpreterEnabled && interpretBtn && collectPromptVariables(currentTemplate).length > 0) {
+		const hasPromptVars = generalSettings.interpreterEnabled
+			&& interpretBtn
+			&& collectPromptVariables(currentTemplate).length > 0;
+
+		const shouldProcessInBackground = hasPromptVars
+			&& generalSettings.interpreterBackgroundProcessing
+			&& !interpretBtn?.classList.contains('done')
+			&& !interpretBtn?.classList.contains('processing');
+
+		if (shouldProcessInBackground) {
+			// Gather current DOM state for background processing
+			const properties = Array.from(document.querySelectorAll('.metadata-property input')).map(input => {
+				const inputElement = input as HTMLInputElement;
+				return {
+					id: inputElement.dataset.id || Date.now().toString() + Math.random().toString(36).slice(2, 11),
+					name: inputElement.id,
+					value: inputElement.type === 'checkbox' ? String(inputElement.checked) : inputElement.value
+				};
+			}) as Property[];
+
+			const selectedVault = currentTemplate.vault || vaultDropdown.value;
+			const isDailyNote = currentTemplate.behavior === 'append-daily' || currentTemplate.behavior === 'prepend-daily';
+			const noteName = isDailyNote ? '' : noteNameField?.value || '';
+			const path = isDailyNote ? '' : pathField?.value || '';
+
+			const promptContextTextarea = document.getElementById('prompt-context') as HTMLTextAreaElement;
+			const modelSelect = document.getElementById('model-select') as HTMLSelectElement;
+			const selectedModelId = modelSelect?.value || generalSettings.interpreterModel;
+
+			const payload = {
+				noteContent: noteContentField.value,
+				noteName,
+				path,
+				properties,
+				vault: selectedVault,
+				behavior: currentTemplate.behavior,
+				promptContext: promptContextTextarea?.value || '',
+				promptVariables: collectPromptVariables(currentTemplate),
+				contentForLLM: currentVariables.content || '',
+				modelId: selectedModelId || '',
+				settings: { ...generalSettings },
+				tabId: currentTabId!,
+			};
+
+			browser.runtime.sendMessage({ action: 'processInterpreterAndSave', data: payload });
+
+			if (!currentTemplate.vault) {
+				lastSelectedVault = selectedVault;
+				await setLocalStorage('lastSelectedVault', lastSelectedVault);
+			}
+
+			if (!isSidePanel) {
+				setTimeout(() => window.close(), 200);
+			}
+			return;
+		}
+
+		// Handle interpreter synchronously if needed (non-background path)
+		if (hasPromptVars) {
 			if (interpretBtn.classList.contains('processing')) {
 				await waitForInterpreter(interpretBtn);
 			} else if (!interpretBtn.classList.contains('done')) {

@@ -10,6 +10,7 @@
 		"clipboardWrite",
 		"commands",
 		"contextMenus",
+		"notifications",
 		"sidePanel",
 		"storage",
 		"scripting"

@@ -3,6 +3,12 @@ import { detectBrowser } from './utils/browser-detection';
 import { updateCurrentActiveTab, isValidUrl, isBlankPage } from './utils/active-tab-manager';
 import { TextHighlightData } from './utils/highlighter';
 import { debounce } from './utils/debounce';
+import { Settings, Property, Template, PromptVariable, ModelConfig } from './types/types';
+import { sendToLLM, replacePromptVariablesInText } from './utils/interpreter';
+import { generateFrontmatter } from './utils/obsidian-note-creator';
+import { loadSettings, generalSettings, incrementStat } from './utils/storage-utils';
+import { sanitizeFileName } from './utils/string-utils';
+import { getMessage } from './utils/i18n';
 
 let sidePanelOpenWindows: Set<number> = new Set();
 let highlighterModeState: { [tabId: number]: boolean } = {};
@@ -328,6 +334,16 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 				});
 				return true;
 			}
+		}
+
+		if (typedRequest.action === "processInterpreterAndSave") {
+			const data = (typedRequest as any).data as ProcessInterpreterPayload;
+			// Fire and forget - processing happens in background
+			processInterpreterAndSave(data).catch(err => {
+				console.error('processInterpreterAndSave error:', err);
+			});
+			sendResponse({ success: true });
+			return true;
 		}
 
 		if (typedRequest.action === "openObsidianUrl") {
@@ -664,6 +680,194 @@ async function injectReaderScript(tabId: number) {
 	} catch (error) {
 		console.error('Error injecting reader script:', error);
 		return false;
+	}
+}
+
+// Background interpreter processing
+interface ProcessInterpreterPayload {
+	noteContent: string;
+	noteName: string;
+	path: string;
+	properties: Property[];
+	vault: string;
+	behavior: Template['behavior'];
+	promptContext: string;
+	promptVariables: PromptVariable[];
+	contentForLLM: string;
+	modelId: string;
+	settings: Settings;
+	tabId: number;
+}
+
+async function setBadge(text: string, color: string): Promise<void> {
+	try {
+		await browser.action.setBadgeText({ text });
+		await browser.action.setBadgeBackgroundColor({ color });
+	} catch (e) {
+		console.warn('Failed to set badge:', e);
+	}
+}
+
+async function clearBadgeAfter(ms: number): Promise<void> {
+	setTimeout(async () => {
+		try {
+			await browser.action.setBadgeText({ text: '' });
+		} catch (e) {
+			// Ignore
+		}
+	}, ms);
+}
+
+async function saveToObsidianFromBackground(
+	fileContent: string,
+	noteName: string,
+	path: string,
+	vault: string,
+	behavior: Template['behavior'],
+	settings: Settings,
+	tabId: number
+): Promise<void> {
+	let obsidianUrl: string;
+	const isDailyNote = behavior === 'append-daily' || behavior === 'prepend-daily';
+
+	if (isDailyNote) {
+		obsidianUrl = `obsidian://daily?`;
+	} else {
+		if (path && !path.endsWith('/')) {
+			path += '/';
+		}
+		const formattedNoteName = sanitizeFileName(noteName);
+		obsidianUrl = `obsidian://new?file=${encodeURIComponent(path + formattedNoteName)}`;
+	}
+
+	if (behavior.startsWith('append')) {
+		obsidianUrl += '&append=true';
+	} else if (behavior.startsWith('prepend')) {
+		obsidianUrl += '&prepend=true';
+	} else if (behavior === 'overwrite') {
+		obsidianUrl += '&overwrite=true';
+	}
+
+	const vaultParam = vault ? `&vault=${encodeURIComponent(vault)}` : '';
+	obsidianUrl += vaultParam;
+
+	if (settings.silentOpen) {
+		obsidianUrl += '&silent=true';
+	}
+
+	if (settings.legacyMode) {
+		obsidianUrl += `&content=${encodeURIComponent(fileContent)}`;
+		await browser.tabs.update(tabId, { url: obsidianUrl });
+	} else {
+		// Copy to clipboard via content script, then open with clipboard flag
+		try {
+			await browser.tabs.sendMessage(tabId, {
+				action: 'copy-text-to-clipboard',
+				text: fileContent
+			});
+			obsidianUrl += `&clipboard&content=${encodeURIComponent('Clipboard error. See https://help.obsidian.md/web-clipper/troubleshoot')}`;
+		} catch (e) {
+			// Fallback to URI method if clipboard fails
+			console.warn('Clipboard copy failed in background, falling back to URI method:', e);
+			obsidianUrl += `&content=${encodeURIComponent(fileContent)}`;
+		}
+		await browser.tabs.update(tabId, { url: obsidianUrl });
+	}
+}
+
+async function processInterpreterAndSave(payload: ProcessInterpreterPayload): Promise<void> {
+	const { promptContext, contentForLLM, promptVariables, modelId, settings, tabId } = payload;
+
+	// Set processing badge
+	await setBadge('...', '#666666');
+
+	try {
+		// Load settings so generalSettings is populated for sendToLLM and generateFrontmatter
+		await loadSettings();
+
+		// Find model config from the settings snapshot
+		const modelConfig = settings.models.find(m => m.id === modelId);
+		if (!modelConfig) {
+			throw new Error(`Model configuration not found for ${modelId}`);
+		}
+
+		// Override generalSettings with the snapshot for provider lookup
+		Object.assign(generalSettings, settings);
+
+		// Call LLM
+		const { promptResponses } = await sendToLLM(promptContext, contentForLLM, promptVariables, modelConfig);
+
+		// Replace prompt variables in note content, note name, and properties
+		const resolvedNoteContent = replacePromptVariablesInText(payload.noteContent, promptVariables, promptResponses);
+		const resolvedNoteName = replacePromptVariablesInText(payload.noteName, promptVariables, promptResponses);
+		const resolvedProperties = payload.properties.map(p => ({
+			...p,
+			value: typeof p.value === 'string'
+				? replacePromptVariablesInText(p.value, promptVariables, promptResponses)
+				: p.value
+		}));
+
+		// Generate frontmatter
+		const frontmatter = await generateFrontmatter(resolvedProperties);
+		const fileContent = frontmatter + resolvedNoteContent;
+
+		// Save to Obsidian
+		await saveToObsidianFromBackground(
+			fileContent,
+			resolvedNoteName,
+			payload.path,
+			payload.vault,
+			payload.behavior,
+			settings,
+			tabId
+		);
+
+		// Update stats
+		try {
+			const tab = await browser.tabs.get(tabId);
+			await incrementStat('addToObsidian', payload.vault, payload.path, tab.url, tab.title);
+		} catch (e) {
+			// Stats update is non-critical
+			console.warn('Failed to update stats:', e);
+		}
+
+		// Success badge
+		await setBadge('OK', '#4CAF50');
+		clearBadgeAfter(3000);
+
+		// Show notification if enabled
+		if (settings.interpreterNotifications) {
+			try {
+				await browser.notifications.create({
+					type: 'basic',
+					iconUrl: 'icons/icon128.png',
+					title: 'Obsidian Web Clipper',
+					message: 'Note saved successfully'
+				});
+			} catch (e) {
+				console.warn('Failed to show notification:', e);
+			}
+		}
+	} catch (error) {
+		console.error('Background interpreter processing failed:', error);
+
+		// Error badge
+		await setBadge('!', '#F44336');
+		clearBadgeAfter(5000);
+
+		// Show error notification if enabled
+		if (settings.interpreterNotifications) {
+			try {
+				await browser.notifications.create({
+					type: 'basic',
+					iconUrl: 'icons/icon128.png',
+					title: 'Obsidian Web Clipper',
+					message: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+				});
+			} catch (e) {
+				console.warn('Failed to show notification:', e);
+			}
+		}
 	}
 }
 

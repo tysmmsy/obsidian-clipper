@@ -635,37 +635,46 @@ export async function handleInterpreterUI(
 	}
 }
 
+// Pure string version of prompt variable replacement for use in background script
+export function replacePromptVariablesInText(
+	text: string,
+	promptVariables: PromptVariable[],
+	promptResponses: any[]
+): string {
+	return text.replace(/{{(?:prompt:)?"([\s\S]*?)"(\|[\s\S]*?)?}}/g, (match, promptText, filters) => {
+		const variable = promptVariables.find(v => v.prompt === promptText);
+		if (!variable) return match;
+
+		const response = promptResponses.find(r => r.key === variable.key);
+		if (response && response.user_response !== undefined) {
+			let value = response.user_response;
+
+			// Handle array or object responses
+			if (typeof value === 'object') {
+				try {
+					value = JSON.stringify(value, null, 2);
+				} catch (error) {
+					console.error('Error stringifying object:', error);
+					value = String(value);
+				}
+			}
+
+			if (filters) {
+				value = applyFilters(value, filters.slice(1));
+			}
+
+			return value;
+		}
+		return match;
+	});
+}
+
 // Similar to replaceVariables, but happens after the LLM response is received
 export function replacePromptVariables(promptVariables: PromptVariable[], promptResponses: any[]) {
 	const allInputs = document.querySelectorAll('input, textarea');
 	allInputs.forEach((input) => {
 		if (input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement) {
-			input.value = input.value.replace(/{{(?:prompt:)?"([\s\S]*?)"(\|[\s\S]*?)?}}/g, (match, promptText, filters) => {
-				const variable = promptVariables.find(v => v.prompt === promptText);
-				if (!variable) return match;
-
-				const response = promptResponses.find(r => r.key === variable.key);
-				if (response && response.user_response !== undefined) {
-					let value = response.user_response;
-					
-					// Handle array or object responses
-					if (typeof value === 'object') {
-						try {
-							value = JSON.stringify(value, null, 2);
-						} catch (error) {
-							console.error('Error stringifying object:', error);
-							value = String(value);
-						}
-					}
-
-					if (filters) {
-						value = applyFilters(value, filters.slice(1));
-					}
-					
-					return value;
-				}
-				return match; // Return original if no match found
-			});
+			input.value = replacePromptVariablesInText(input.value, promptVariables, promptResponses);
 
 			// Adjust height for noteNameField after updating its value
 			if (input.id === 'note-name-field' && input instanceof HTMLTextAreaElement) {
