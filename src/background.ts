@@ -3,7 +3,12 @@ import { detectBrowser } from './utils/browser-detection';
 import { updateCurrentActiveTab, isValidUrl, isBlankPage } from './utils/active-tab-manager';
 import { TextHighlightData } from './utils/highlighter';
 import { debounce } from './utils/debounce';
-import { Settings, Property, Template, PromptVariable, ModelConfig, Provider } from './types/types';
+import { Settings, Property, Template, PromptVariable, ModelConfig } from './types/types';
+import { sanitizeFileNameCore } from './utils/string-utils-core';
+import { generateFrontmatter } from './utils/frontmatter';
+import { sendToLLM } from './utils/llm-client';
+import { replacePromptVariablesInText } from './utils/prompt-utils';
+import { incrementStat } from './utils/storage-utils';
 
 let sidePanelOpenWindows: Set<number> = new Set();
 let highlighterModeState: { [tabId: number]: boolean } = {};
@@ -678,8 +683,7 @@ async function injectReaderScript(tabId: number) {
 	}
 }
 
-// Background interpreter processing - all functions are self-contained
-// to avoid importing DOM-dependent modules into the service worker.
+// Background interpreter processing - uses shared DOM-free modules.
 
 interface ProcessInterpreterPayload {
 	noteContent: string;
@@ -715,309 +719,6 @@ async function clearBadgeAfter(ms: number): Promise<void> {
 	}, ms);
 }
 
-// Inline sanitizeFileName for service worker (no navigator dependency)
-function bgSanitizeFileName(fileName: string): string {
-	// Remove Obsidian-specific characters and common unsafe characters
-	return fileName
-		.replace(/[#|\^\[\]]/g, '')
-		.replace(/[<>:"\/\\?*\x00-\x1F]/g, '')
-		.replace(/\.\./g, '.')
-		.replace(/^\.+/, '')
-		.replace(/\.+$/, '')
-		.trim();
-}
-
-// Inline escapeDoubleQuotes
-function bgEscapeDoubleQuotes(str: string): string {
-	return str.replace(/"/g, '\\"');
-}
-
-// Inline generateFrontmatter for service worker
-async function bgGenerateFrontmatter(properties: Property[], propertyTypes: Settings['propertyTypes']): Promise<string> {
-	let frontmatter = '---\n';
-	for (const property of properties) {
-		const needsQuotes = /[:\s\{\}\[\],&*#?|<>=!%@\\-]/.test(property.name) || /^[\d]/.test(property.name) || /^(true|false|null|yes|no|on|off)$/i.test(property.name.trim());
-		const propertyKey = needsQuotes ? (property.name.includes('"') ? `'${property.name.replace(/'/g, "''")}'` : `"${property.name}"`) : property.name;
-		frontmatter += `${propertyKey}:`;
-
-		const propertyType = propertyTypes.find(p => p.name === property.name)?.type || 'text';
-
-		switch (propertyType) {
-			case 'multitext': {
-				let items: string[];
-				if (property.value.trim().startsWith('["') && property.value.trim().endsWith('"]')) {
-					try {
-						items = JSON.parse(property.value);
-					} catch (e) {
-						items = property.value.split(',').map(item => item.trim());
-					}
-				} else {
-					items = property.value.split(/,(?![^\[]*\]\])/).map(item => item.trim());
-				}
-				items = items.filter(item => item !== '');
-				if (items.length > 0) {
-					frontmatter += '\n';
-					items.forEach(item => {
-						frontmatter += `  - "${bgEscapeDoubleQuotes(item)}"\n`;
-					});
-				} else {
-					frontmatter += '\n';
-				}
-				break;
-			}
-			case 'number': {
-				const numericValue = property.value.replace(/[^\d.-]/g, '');
-				frontmatter += numericValue ? ` ${parseFloat(numericValue)}\n` : '\n';
-				break;
-			}
-			case 'checkbox': {
-				const isChecked = typeof property.value === 'boolean' ? property.value : property.value === 'true';
-				frontmatter += ` ${isChecked}\n`;
-				break;
-			}
-			case 'date':
-			case 'datetime':
-				if (property.value.trim() !== '') {
-					frontmatter += ` ${property.value}\n`;
-				} else {
-					frontmatter += '\n';
-				}
-				break;
-			default:
-				frontmatter += property.value.trim() !== '' ? ` "${bgEscapeDoubleQuotes(property.value)}"\n` : '\n';
-		}
-	}
-	frontmatter += '---\n';
-	if (frontmatter.trim() === '---\n---') {
-		return '';
-	}
-	return frontmatter;
-}
-
-// Inline replacePromptVariablesInText (no applyFilters - filters already applied by popup before sending)
-function bgReplacePromptVariablesInText(
-	text: string,
-	promptVariables: PromptVariable[],
-	promptResponses: any[]
-): string {
-	return text.replace(/{{(?:prompt:)?"([\s\S]*?)"(\|[\s\S]*?)?}}/g, (match, promptText, _filters) => {
-		const variable = promptVariables.find(v => v.prompt === promptText);
-		if (!variable) return match;
-
-		const response = promptResponses.find(r => r.key === variable.key);
-		if (response && response.user_response !== undefined) {
-			let value = response.user_response;
-			if (typeof value === 'object') {
-				try {
-					value = JSON.stringify(value, null, 2);
-				} catch (error) {
-					console.error('Error stringifying object:', error);
-					value = String(value);
-				}
-			}
-			return value;
-		}
-		return match;
-	});
-}
-
-// Inline sendToLLM for service worker (self-contained, no generalSettings dependency)
-async function bgSendToLLM(
-	promptContext: string,
-	content: string,
-	promptVariables: PromptVariable[],
-	model: ModelConfig,
-	providers: Provider[]
-): Promise<{ promptResponses: any[] }> {
-	const provider = providers.find(p => p.id === model.providerId);
-	if (!provider) {
-		throw new Error(`Provider not found for model ${model.name}`);
-	}
-	if (provider.apiKeyRequired && !provider.apiKey) {
-		throw new Error(`API key is not set for provider ${provider.name}`);
-	}
-
-	const systemContent =
-		`You are a helpful assistant. Please respond with one JSON object named \`prompts_responses\` — no explanatory text before or after. Use the keys provided, e.g. \`prompt_1\`, \`prompt_2\`, and fill in the values. Values should be Markdown strings unless otherwise specified. Make your responses concise. For example, your response should look like: {"prompts_responses":{"prompt_1":"tag1, tag2, tag3","prompt_2":"- bullet1\n- bullet 2\n- bullet3"}}`;
-
-	const promptContent = {
-		prompts: promptVariables.reduce((acc, { key, prompt }) => {
-			acc[key] = prompt;
-			return acc;
-		}, {} as { [key: string]: string })
-	};
-
-	let requestUrl: string;
-	let requestBody: any;
-	let headers: HeadersInit = { 'Content-Type': 'application/json' };
-
-	if (provider.name.toLowerCase().includes('anthropic')) {
-		requestUrl = provider.baseUrl;
-		requestBody = {
-			model: model.providerModelId,
-			max_tokens: 1600,
-			messages: [
-				{ role: 'user', content: `${promptContext}` },
-				{ role: 'user', content: `${JSON.stringify(promptContent)}` }
-			],
-			temperature: 0.5,
-			system: systemContent
-		};
-		headers = { ...headers, 'x-api-key': provider.apiKey, 'anthropic-version': '2023-06-01' };
-	} else if (provider.name.toLowerCase().includes('ollama')) {
-		requestUrl = provider.baseUrl;
-		requestBody = {
-			model: model.providerModelId,
-			messages: [
-				{ role: 'system', content: systemContent },
-				{ role: 'user', content: `${promptContext}` },
-				{ role: 'user', content: `${JSON.stringify(promptContent)}` }
-			],
-			format: 'json',
-			num_ctx: 120000,
-			temperature: 0.5,
-			stream: false
-		};
-	} else if (provider.baseUrl.includes('openai.azure.com')) {
-		requestUrl = provider.baseUrl;
-		requestBody = {
-			messages: [
-				{ role: 'system', content: systemContent },
-				{ role: 'user', content: `${promptContext}` },
-				{ role: 'user', content: `${JSON.stringify(promptContent)}` }
-			],
-			max_tokens: 1600,
-			stream: false
-		};
-		headers = { ...headers, 'api-key': provider.apiKey };
-	} else if (provider.name.toLowerCase().includes('hugging')) {
-		requestUrl = provider.baseUrl.replace('{model-id}', model.providerModelId);
-		requestBody = {
-			model: model.providerModelId,
-			messages: [
-				{ role: 'system', content: systemContent },
-				{ role: 'user', content: `${promptContext}` },
-				{ role: 'user', content: `${JSON.stringify(promptContent)}` }
-			],
-			max_tokens: 1600,
-			stream: false
-		};
-		headers = { ...headers, 'Authorization': `Bearer ${provider.apiKey}` };
-	} else {
-		requestUrl = provider.baseUrl;
-		requestBody = {
-			model: model.providerModelId,
-			messages: [
-				{ role: 'system', content: systemContent },
-				{ role: 'user', content: `${promptContext}` },
-				{ role: 'user', content: `${JSON.stringify(promptContent)}` }
-			]
-		};
-		headers = { ...headers, 'Authorization': `Bearer ${provider.apiKey}` };
-	}
-
-	const response = await fetch(requestUrl, {
-		method: 'POST',
-		headers,
-		body: JSON.stringify(requestBody)
-	});
-
-	if (!response.ok) {
-		const errorText = await response.text();
-		throw new Error(`${provider.name} error: ${response.statusText} ${errorText}`);
-	}
-
-	const responseText = await response.text();
-	let data;
-	try {
-		data = JSON.parse(responseText);
-	} catch (error) {
-		throw new Error(`Failed to parse response from ${provider.name}`);
-	}
-
-	let llmResponseContent: string;
-	if (provider.name.toLowerCase().includes('anthropic')) {
-		const textContent = data.content[0]?.text;
-		if (textContent) {
-			try { llmResponseContent = JSON.stringify(JSON.parse(textContent)); }
-			catch { llmResponseContent = textContent; }
-		} else {
-			llmResponseContent = JSON.stringify(data);
-		}
-	} else if (provider.name.toLowerCase().includes('ollama')) {
-		const messageContent = data.message?.content;
-		if (messageContent) {
-			try { llmResponseContent = JSON.stringify(JSON.parse(messageContent)); }
-			catch { llmResponseContent = messageContent; }
-		} else {
-			llmResponseContent = JSON.stringify(data);
-		}
-	} else {
-		llmResponseContent = data.choices[0]?.message?.content || JSON.stringify(data);
-	}
-
-	// Parse LLM response
-	try {
-		const jsonMatch = llmResponseContent.match(/\{[\s\S]*\}/);
-		const jsonStr = jsonMatch ? jsonMatch[0] : llmResponseContent;
-		const parsed = JSON.parse(jsonStr);
-		const promptsResponses = parsed?.prompts_responses || parsed;
-
-		// Convert escaped newlines
-		Object.keys(promptsResponses).forEach(key => {
-			if (typeof promptsResponses[key] === 'string') {
-				promptsResponses[key] = promptsResponses[key].replace(/\\n/g, '\n').replace(/\r/g, '');
-			}
-		});
-
-		const promptResponses = promptVariables.map(variable => ({
-			key: variable.key,
-			prompt: variable.prompt,
-			user_response: promptsResponses[variable.key] || ''
-		}));
-
-		return { promptResponses };
-	} catch (parseError) {
-		console.error('Failed to parse LLM response:', parseError);
-		return { promptResponses: [] };
-	}
-}
-
-// Inline incrementStat for service worker
-async function bgIncrementStat(
-	action: string,
-	vault?: string,
-	path?: string,
-	url?: string,
-	title?: string
-): Promise<void> {
-	try {
-		const data = await browser.storage.sync.get(null) as any;
-		const stats = data.stats || { addToObsidian: 0, saveFile: 0, copyToClipboard: 0, share: 0 };
-		if (action in stats) {
-			stats[action]++;
-		}
-		await browser.storage.sync.set({ stats });
-
-		// Add history entry
-		if (url) {
-			const result = await browser.storage.local.get('history');
-			const history: any[] = (result.history || []) as any[];
-			history.unshift({
-				datetime: new Date().toISOString(),
-				url,
-				action,
-				title,
-				vault,
-				path
-			});
-			await browser.storage.local.set({ history: history.slice(0, 1000) });
-		}
-	} catch (e) {
-		console.warn('Failed to update stats:', e);
-	}
-}
-
 async function saveToObsidianFromBackground(
 	fileContent: string,
 	noteName: string,
@@ -1036,7 +737,7 @@ async function saveToObsidianFromBackground(
 		if (path && !path.endsWith('/')) {
 			path += '/';
 		}
-		const formattedNoteName = bgSanitizeFileName(noteName);
+		const formattedNoteName = sanitizeFileNameCore(noteName);
 		obsidianUrl = `obsidian://new?file=${encodeURIComponent(path + formattedNoteName)}`;
 	}
 
@@ -1085,23 +786,23 @@ async function processInterpreterAndSave(payload: ProcessInterpreterPayload): Pr
 			throw new Error(`Model configuration not found for ${modelId}`);
 		}
 
-		// Call LLM using self-contained function
-		const { promptResponses } = await bgSendToLLM(
+		// Call LLM using shared module
+		const { promptResponses } = await sendToLLM(
 			promptContext, contentForLLM, promptVariables, modelConfig, settings.providers
 		);
 
-		// Replace prompt variables
-		const resolvedNoteContent = bgReplacePromptVariablesInText(payload.noteContent, promptVariables, promptResponses);
-		const resolvedNoteName = bgReplacePromptVariablesInText(payload.noteName, promptVariables, promptResponses);
+		// Replace prompt variables using shared module (no filterFn in background)
+		const resolvedNoteContent = replacePromptVariablesInText(payload.noteContent, promptVariables, promptResponses);
+		const resolvedNoteName = replacePromptVariablesInText(payload.noteName, promptVariables, promptResponses);
 		const resolvedProperties = payload.properties.map(p => ({
 			...p,
 			value: typeof p.value === 'string'
-				? bgReplacePromptVariablesInText(p.value, promptVariables, promptResponses)
+				? replacePromptVariablesInText(p.value, promptVariables, promptResponses)
 				: p.value
 		}));
 
-		// Generate frontmatter
-		const frontmatter = await bgGenerateFrontmatter(resolvedProperties, settings.propertyTypes);
+		// Generate frontmatter using shared module
+		const frontmatter = await generateFrontmatter(resolvedProperties, settings.propertyTypes);
 		const fileContent = frontmatter + resolvedNoteContent;
 
 		// Save to Obsidian
@@ -1113,44 +814,18 @@ async function processInterpreterAndSave(payload: ProcessInterpreterPayload): Pr
 		// Update stats
 		try {
 			const tab = await browser.tabs.get(tabId);
-			await bgIncrementStat('addToObsidian', payload.vault, payload.path, tab.url, tab.title);
+			await incrementStat('addToObsidian', payload.vault, payload.path, tab.url, tab.title);
 		} catch (e) {
 			console.warn('Failed to update stats:', e);
 		}
 
 		await setBadge('OK', '#4CAF50');
 		clearBadgeAfter(3000);
-
-		if (settings.interpreterNotifications) {
-			try {
-				await browser.notifications.create({
-					type: 'basic',
-					iconUrl: 'icons/icon128.png',
-					title: 'Obsidian Web Clipper',
-					message: 'Note saved successfully'
-				});
-			} catch (e) {
-				console.warn('Failed to show notification:', e);
-			}
-		}
 	} catch (error) {
 		console.error('Background interpreter processing failed:', error);
 
 		await setBadge('!', '#F44336');
 		clearBadgeAfter(5000);
-
-		if (settings.interpreterNotifications) {
-			try {
-				await browser.notifications.create({
-					type: 'basic',
-					iconUrl: 'icons/icon128.png',
-					title: 'Obsidian Web Clipper',
-					message: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
-				});
-			} catch (e) {
-				console.warn('Failed to show notification:', e);
-			}
-		}
 	}
 }
 

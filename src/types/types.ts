@@ -76,7 +76,6 @@ export interface Settings {
 	interpreterEnabled: boolean;
 	interpreterAutoRun: boolean;
 	interpreterBackgroundProcessing: boolean;
-	interpreterNotifications: boolean;
 	defaultPromptContext: string;
 	propertyTypes: PropertyType[];
 	readerSettings: ReaderSettings;

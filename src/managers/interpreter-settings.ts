@@ -258,9 +258,6 @@ function initializeInterpreterToggles(): void {
 		saveSettings({ ...generalSettings, interpreterBackgroundProcessing: checked });
 	});
 
-	initializeSettingToggle('interpreter-notifications-toggle', generalSettings.interpreterNotifications, (checked) => {
-		saveSettings({ ...generalSettings, interpreterNotifications: checked });
-	});
 }
 
 function initializeProviderList() {
@@ -1090,7 +1087,6 @@ function saveInterpreterSettingsFromForm(): void {
 	const interpreterToggle = document.getElementById('interpreter-toggle') as HTMLInputElement;
 	const interpreterAutoRunToggle = document.getElementById('interpreter-auto-run-toggle') as HTMLInputElement;
 	const interpreterBackgroundToggle = document.getElementById('interpreter-background-toggle') as HTMLInputElement;
-	const interpreterNotificationsToggle = document.getElementById('interpreter-notifications-toggle') as HTMLInputElement;
 	const defaultPromptContextInput = document.getElementById('default-prompt-context') as HTMLTextAreaElement;
 
 	const updatedSettings: Partial<typeof generalSettings> = {};
@@ -1102,9 +1098,6 @@ function saveInterpreterSettingsFromForm(): void {
 	}
 	if (interpreterBackgroundToggle) {
 		updatedSettings.interpreterBackgroundProcessing = interpreterBackgroundToggle.checked;
-	}
-	if (interpreterNotificationsToggle) {
-		updatedSettings.interpreterNotifications = interpreterNotificationsToggle.checked;
 	}
 	if (defaultPromptContextInput) {
 		updatedSettings.defaultPromptContext = defaultPromptContextInput.value;

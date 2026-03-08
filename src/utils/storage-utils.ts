@@ -20,8 +20,7 @@ export let generalSettings: Settings = {
 	interpreterEnabled: false,
 	interpreterAutoRun: false,
 	interpreterBackgroundProcessing: true,
-	interpreterNotifications: false,
-	defaultPromptContext: '',
+		defaultPromptContext: '',
 	propertyTypes: [],
 	readerSettings: {
 		fontSize: 1.5,
@@ -78,7 +77,6 @@ interface StorageData {
 		interpreterEnabled?: boolean;
 		interpreterAutoRun?: boolean;
 		interpreterBackgroundProcessing?: boolean;
-		interpreterNotifications?: boolean;
 		defaultPromptContext?: string;
 	};
 	property_types?: PropertyType[];
@@ -115,8 +113,7 @@ export async function loadSettings(): Promise<Settings> {
 		interpreterEnabled: false,
 		interpreterAutoRun: false,
 		interpreterBackgroundProcessing: true,
-		interpreterNotifications: false,
-		defaultPromptContext: '',
+				defaultPromptContext: '',
 		propertyTypes: [],
 		saveBehavior: 'addToObsidian',
 		readerSettings: {
@@ -170,7 +167,6 @@ export async function loadSettings(): Promise<Settings> {
 		interpreterEnabled: data.interpreter_settings?.interpreterEnabled ?? defaultSettings.interpreterEnabled,
 		interpreterAutoRun: data.interpreter_settings?.interpreterAutoRun ?? defaultSettings.interpreterAutoRun,
 		interpreterBackgroundProcessing: data.interpreter_settings?.interpreterBackgroundProcessing ?? defaultSettings.interpreterBackgroundProcessing,
-		interpreterNotifications: data.interpreter_settings?.interpreterNotifications ?? defaultSettings.interpreterNotifications,
 		defaultPromptContext: data.interpreter_settings?.defaultPromptContext || defaultSettings.defaultPromptContext,
 		propertyTypes: data.property_types || defaultSettings.propertyTypes,
 		readerSettings: {
@@ -218,7 +214,6 @@ export async function saveSettings(settings?: Partial<Settings>): Promise<void> 
 			interpreterEnabled: generalSettings.interpreterEnabled,
 			interpreterAutoRun: generalSettings.interpreterAutoRun,
 			interpreterBackgroundProcessing: generalSettings.interpreterBackgroundProcessing,
-			interpreterNotifications: generalSettings.interpreterNotifications,
 			defaultPromptContext: generalSettings.defaultPromptContext
 		},
 		property_types: generalSettings.propertyTypes,
@@ -297,15 +292,17 @@ declare global {
 }
 
 // Make storage accessible from console — use `window.debugStorage()` to see all sync storage, or `window.debugStorage(key)` to see a specific key
-window.debugStorage = (key?: string) => {
-	if (key) {
-		return browser.storage.sync.get(key).then(data => {
-			console.log(`Sync storage contents for key "${key}":`, data);
+if (typeof window !== 'undefined') {
+	window.debugStorage = (key?: string) => {
+		if (key) {
+			return browser.storage.sync.get(key).then(data => {
+				console.log(`Sync storage contents for key "${key}":`, data);
+				return data;
+			});
+		}
+		return browser.storage.sync.get(null).then(data => {
+			console.log('Sync storage contents:', data);
 			return data;
 		});
-	}
-	return browser.storage.sync.get(null).then(data => {
-		console.log('Sync storage contents:', data);
-		return data;
-	});
-};
+	};
+}
