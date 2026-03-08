@@ -25,8 +25,8 @@ export async function sendToLLM(promptContext: string, content: string, promptVa
 		throw new Error(`Rate limit cooldown. Please wait ${Math.ceil((RATE_LIMIT_RESET_TIME - (now - lastRequestTime)) / 1000)} seconds before trying again.`);
 	}
 
+	lastRequestTime = now;
 	const result = await sendToLLMCore(promptContext, content, promptVariables, model, generalSettings.providers);
-	lastRequestTime = Date.now();
 	return result;
 }
 

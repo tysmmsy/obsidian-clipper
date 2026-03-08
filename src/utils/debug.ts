@@ -36,6 +36,6 @@ export const debugLog = (filterName: string, ...args: any[]) => {
 export const isDebugMode = () => DEBUG_MODE && debugMode;
 
 // Expose toggleDebug to the global scope only in debug mode
-if (DEBUG_MODE) {
+if (DEBUG_MODE && typeof window !== 'undefined') {
 	(window as any).toggleDebug = toggleDebug;
 }

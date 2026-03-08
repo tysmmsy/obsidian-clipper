@@ -20,7 +20,7 @@ export let generalSettings: Settings = {
 	interpreterEnabled: false,
 	interpreterAutoRun: false,
 	interpreterBackgroundProcessing: true,
-		defaultPromptContext: '',
+	defaultPromptContext: '',
 	propertyTypes: [],
 	readerSettings: {
 		fontSize: 1.5,
@@ -113,7 +113,7 @@ export async function loadSettings(): Promise<Settings> {
 		interpreterEnabled: false,
 		interpreterAutoRun: false,
 		interpreterBackgroundProcessing: true,
-				defaultPromptContext: '',
+		defaultPromptContext: '',
 		propertyTypes: [],
 		saveBehavior: 'addToObsidian',
 		readerSettings: {

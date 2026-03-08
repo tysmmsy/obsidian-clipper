@@ -8,7 +8,6 @@ export {
 	escapeHtml,
 	formatDuration,
 	getDomain,
-	sanitizeFileNameCore,
 } from './string-utils-core';
 
 import { sanitizeFileNameCore, escapeHtml as coreEscapeHtml } from './string-utils-core';

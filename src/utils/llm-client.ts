@@ -1,6 +1,7 @@
 // DOM-free LLM client that can be used by both popup and service worker.
 
 import { PromptVariable, ModelConfig, Provider } from '../types/types';
+import { debugLog } from './debug';
 
 interface LLMResponse {
 	prompts_responses: { [key: string]: string };
@@ -140,6 +141,8 @@ export async function sendToLLM(
 		};
 	}
 
+	debugLog('Interpreter', `Sending request to ${provider.name} API:`, requestBody);
+
 	const response = await fetch(requestUrl, {
 		method: 'POST',
 		headers: headers,
@@ -162,6 +165,7 @@ export async function sendToLLM(
 	}
 
 	const responseText = await response.text();
+	debugLog('Interpreter', `Raw ${provider.name} response:`, responseText);
 
 	let data;
 	try {
@@ -170,6 +174,8 @@ export async function sendToLLM(
 		console.error('Error parsing JSON response:', error);
 		throw new Error(`Failed to parse response from ${provider.name}`);
 	}
+
+	debugLog('Interpreter', `Parsed ${provider.name} response:`, data);
 
 	let llmResponseContent: string;
 	if (provider.name.toLowerCase().includes('anthropic')) {
@@ -200,6 +206,8 @@ export async function sendToLLM(
 	} else {
 		llmResponseContent = data.choices[0]?.message?.content || JSON.stringify(data);
 	}
+
+	debugLog('Interpreter', 'Processed LLM response:', llmResponseContent);
 
 	return parseLLMResponse(llmResponseContent, promptVariables);
 }
@@ -243,6 +251,7 @@ export function parseLLMResponse(responseContent: string, promptVariables: Promp
 		// First try to parse the content directly
 		try {
 			const sanitizedContent = sanitizeJsonString(responseContent);
+			debugLog('Interpreter', 'Sanitized content:', sanitizedContent);
 			parsedResponse = JSON.parse(sanitizedContent);
 		} catch (e) {
 			// If direct parsing fails, try to extract and parse the JSON content
@@ -261,6 +270,7 @@ export function parseLLMResponse(responseContent: string, promptVariables: Promp
 			} catch (minimalError) {
 				// If minimal sanitization fails, try full sanitization
 				const sanitizedMatch = sanitizeJsonString(jsonMatch[0]);
+				debugLog('Interpreter', 'Fully sanitized match:', sanitizedMatch);
 
 				try {
 					parsedResponse = JSON.parse(sanitizedMatch);
@@ -283,6 +293,7 @@ export function parseLLMResponse(responseContent: string, promptVariables: Promp
 					});
 
 					const rebuiltJson = JSON.stringify({ prompts_responses });
+					debugLog('Interpreter', 'Rebuilt JSON:', rebuiltJson);
 					parsedResponse = JSON.parse(rebuiltJson);
 				}
 			}
@@ -290,6 +301,7 @@ export function parseLLMResponse(responseContent: string, promptVariables: Promp
 
 		// Validate the response structure
 		if (!parsedResponse?.prompts_responses) {
+			debugLog('Interpreter', 'No prompts_responses found in parsed response', parsedResponse);
 			return { promptResponses: [] };
 		}
 
@@ -309,9 +321,14 @@ export function parseLLMResponse(responseContent: string, promptVariables: Promp
 			user_response: parsedResponse.prompts_responses[variable.key] || ''
 		}));
 
+		debugLog('Interpreter', 'Successfully mapped prompt responses:', promptResponses);
 		return { promptResponses };
 	} catch (parseError) {
 		console.error('Failed to parse LLM response:', parseError);
+		debugLog('Interpreter', 'Parse error details:', {
+			error: parseError,
+			responseContent: responseContent
+		});
 		return { promptResponses: [] };
 	}
 }
