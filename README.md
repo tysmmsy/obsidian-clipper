@@ -32,12 +32,12 @@ See the [help wanted](https://github.com/obsidianmd/obsidian-clipper/issues?q=is
 In no particular order:
 
 - [ ] A separate icon for Web Clipper
-- [ ] Translate UI into more languages — help is welcomed
 - [ ] Annotate highlights
 - [ ] Template directory
-- [ ] Template validation
+- [x] Template validation
 - [x] Template logic (if/for)
 - [x] Save images locally, [added in Obsidian 1.8.0](https://obsidian.md/changelog/2024-12-18-desktop-v1.8.0/)
+- [x] Translate UI into more languages — help is welcomed
 
 ## Developers
 
@@ -97,10 +97,8 @@ npm run test:watch
 ## Third-party libraries
 
 - [webextension-polyfill](https://github.com/mozilla/webextension-polyfill) for browser compatibility
-- [defuddle](https://github.com/kepano/defuddle) for content extraction
-- [turndown](https://github.com/mixmark-io/turndown) for HTML to Markdown conversion
+- [defuddle](https://github.com/kepano/defuddle) for content extraction and Markdown conversion
 - [dayjs](https://github.com/iamkun/dayjs) for date parsing and formatting
 - [lz-string](https://github.com/pieroxy/lz-string) to compress templates to reduce storage space
 - [lucide](https://github.com/lucide-icons/lucide) for icons
-- [mathml-to-latex](https://github.com/asnunes/mathml-to-latex) for MathML to LaTeX conversion
 - [dompurify](https://github.com/cure53/DOMPurify) for sanitizing HTML

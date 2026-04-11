@@ -149,9 +149,6 @@ export function toggleHighlighterMenu(isActive: boolean) {
 		enableLinkClicks();
 		removeHighlighterMenu();
 		browser.runtime.sendMessage({ action: "highlighterModeChanged", isActive: false });
-		if (!generalSettings.alwaysShowHighlights) {
-			removeExistingHighlights();
-		}
 	}
 	updateHighlightListeners();
 }
@@ -170,9 +167,7 @@ export function undo() {
 		if (lastAction) {
 			redoHistory.push(lastAction);
 			highlights = [...lastAction.oldHighlights];
-			applyHighlights();
-			saveHighlights();
-			updateHighlighterMenu();
+			commitHighlightChanges();
 			updateUndoRedoButtons();
 		}
 	}
@@ -184,9 +179,7 @@ export function redo() {
 		if (nextAction) {
 			highlightHistory.push(nextAction);
 			highlights = [...nextAction.newHighlights];
-			applyHighlights();
-			saveHighlights();
-			updateHighlighterMenu();
+			commitHighlightChanges();
 			updateUndoRedoButtons();
 		}
 	}
@@ -487,10 +480,8 @@ export function handleTextSelection(selection: Selection, notes?: string[]) {
 			addToHistory('add', oldGlobalHighlights, highlights); 
 		}
 		
-		sortHighlights(); // Sort once after all additions
-		applyHighlights(); // Apply once
-		saveHighlights();  // Save once
-		updateHighlighterMenu(); // Update menu once
+		sortHighlights();
+		commitHighlightChanges();
 	}
 	selection.removeAllRanges();
 }
@@ -724,9 +715,7 @@ function addHighlight(highlight: AnyHighlightData, notes?: string[]) {
 	highlights = mergedHighlights;
 	addToHistory('add', oldHighlights, mergedHighlights);
 	sortHighlights();
-	applyHighlights();
-	saveHighlights();
-	updateHighlighterMenu();
+	commitHighlightChanges();
 }
 
 // Sort highlights based on their vertical position
@@ -916,7 +905,16 @@ export function saveHighlights() {
 	}
 }
 
-// Apply all highlights to the page
+export function invalidateHighlightCache() {
+	lastAppliedHighlights = '';
+}
+
+// Force reposition of all highlight overlays after layout changes
+export function repositionHighlights() {
+	invalidateHighlightCache();
+	applyHighlights();
+}
+
 export function applyHighlights() {
 	if (highlights.length === 0) {
 		return; // Don't do anything if there are no highlights
@@ -940,15 +938,14 @@ export function applyHighlights() {
 
 	lastAppliedHighlights = currentHighlightsState;
 	isApplyingHighlights = false;
-	notifyHighlightsUpdated();
 }
 
-// Notify that highlights have been updated
-async function notifyHighlightsUpdated() {
-	const response = await browser.runtime.sendMessage({ action: "getActiveTab" }) as { tabId?: number; error?: string };
-	if (response.tabId) {
-		browser.runtime.sendMessage({ action: "highlightsUpdated", tabId: response.tabId });
-	}
+// Apply, save, and update UI after highlight changes.
+// The popup/side-panel detects changes via storage.local.onChanged.
+function commitHighlightChanges() {
+	applyHighlights();
+	saveHighlights();
+	updateHighlighterMenu();
 }
 
 // Get all highlight contents
@@ -991,7 +988,6 @@ export function clearHighlights() {
 			removeExistingHighlights();
 			console.log('Highlights cleared for:', url);
 			browser.runtime.sendMessage({ action: "highlightsCleared" });
-			notifyHighlightsUpdated();
 			updateHighlighterMenu();
 			addToHistory('remove', oldHighlights, []);
 		});

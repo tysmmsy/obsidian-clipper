@@ -209,9 +209,6 @@
 	"embedded": {
 		"message": "Gömülü"
 	},
-	"enableHighlighter": {
-		"message": "Vurgulayıcıyı etkinleştir"
-	},
 	"enableHighlighterDescription": {
 		"message": "Web sayfalarındaki Obsidian'a kaydedebileceğiniz içeriği vurgulayın."
 	},
@@ -355,6 +352,9 @@
 		"message": "Sayfayı vurgula"
 	},
 	"highlighter": {
+		"message": "Vurgulayıcı"
+	},
+	"highlighterOn": {
 		"message": "Vurgulayıcı"
 	},
 	"highlighterSettings": {
@@ -576,6 +576,9 @@
 	"prependToExisting": {
 		"message": "Mevcut nota, başa ekle"
 	},
+	"preview": {
+		"message": "Önizleme"
+	},
 	"processing": {
 		"message": "İşleniyor"
 	},
@@ -656,6 +659,147 @@
 	},
 	"reader": {
 		"message": "Okuyucu"
+	},
+	"readerAppearance": {
+		"message": "Görünüm"
+	},
+	"readerAppearanceAuto": {
+		"message": "Otomatik"
+	},
+	"readerAppearanceDark": {
+		"message": "Koyu"
+	},
+	"readerAppearanceDescription": {
+		"message": "Açık veya koyu görünümü seçin."
+	},
+	"readerAppearanceLight": {
+		"message": "Açık"
+	},
+	"readerAutoScroll": {
+		"message": "Otomatik kaydırma"
+	},
+	"readerAutoScrollDescription": {
+		"message": "Oynatmayı takip etmek için transkripti otomatik olarak kaydırır."
+	},
+	"readerBlendImages": {
+		"message": "Görselleri harmanla"
+	},
+	"readerBlendImagesDescription": {
+		"message": "Görselleri sayfa arka planıyla harmanlayın."
+	},
+	"readerCloseImageViewer": {
+		"message": "Görsel görüntüleyiciyi kapat"
+	},
+	"readerCollapseComment": {
+		"message": "Yorumu daralt"
+	},
+	"readerColorLinks": {
+		"message": "Bağlantıları renklendir"
+	},
+	"readerColorSchemeDefault": {
+		"message": "Varsayılan"
+	},
+	"readerCurrentPosition": {
+		"message": "Geçerli konum"
+	},
+	"readerCustomCss": {
+		"message": "Özel CSS"
+	},
+	"readerCustomCssDescription": {
+		"message": "Okuma görünümünde otomatik olarak uygulanan CSS."
+	},
+	"readerDarkTheme": {
+		"message": "Koyu mod teması"
+	},
+	"readerDarkThemeDescription": {
+		"message": "Koyu modda farklı bir tema kullanın."
+	},
+	"readerError": {
+		"message": "İçerik çıkarılamadı."
+	},
+	"readerFont": {
+		"message": "Yazı tipi seçenekleri"
+	},
+	"readerFontDefault": {
+		"message": "Varsayılan"
+	},
+	"readerFontDescription": {
+		"message": "Sisteminizde yüklü yazı tiplerini ekleyin. Bir yazı tipi eklemek için Enter'a basın."
+	},
+	"readerFontNotFound": {
+		"message": "Bulunamadı"
+	},
+	"readerFontPlaceholder": {
+		"message": "Bir yazı tipi eklemek için Enter'a basın"
+	},
+	"readerFontSetDefault": {
+		"message": "Varsayılan olarak ayarla"
+	},
+	"readerFontSize": {
+		"message": "Temel yazı tipi boyutu"
+	},
+	"readerFontSystem": {
+		"message": "Sistem"
+	},
+	"readerFontSystemSans": {
+		"message": "Sans-serif"
+	},
+	"readerFontSystemSerif": {
+		"message": "Serif"
+	},
+	"readerFonts": {
+		"message": "Yazı tipleri"
+	},
+	"readerFootnotes": {
+		"message": "Dipnotlar"
+	},
+	"readerHighlightActiveLine": {
+		"message": "Etkin satırı vurgula"
+	},
+	"readerHighlightActiveLineDescription": {
+		"message": "Oynatma sırasında transkriptteki geçerli cümleyi vurgular."
+	},
+	"readerImages": {
+		"message": "Görseller"
+	},
+	"readerLineHeight": {
+		"message": "Satır yüksekliği"
+	},
+	"readerLineWidth": {
+		"message": "Satır genişliği"
+	},
+	"readerLoading": {
+		"message": "Sadeleştiriliyor…"
+	},
+	"readerOn": {
+		"message": "Okuyucu"
+	},
+	"readerPinPlayer": {
+		"message": "Oynatıcıyı sabitle"
+	},
+	"readerPinPlayerDescription": {
+		"message": "Transkriptte kaydırma yaparken video oynatıcısını görünür tutar."
+	},
+	"readerSettings": {
+		"message": "Okuyucu ayarları"
+	},
+	"readerTheme": {
+		"message": "Tema"
+	},
+	"readerThemeDescription": {
+		"message": "Okuma görünümünde kullanılan renkleri seçin."
+	},
+	"readerThemeSection": {
+		"message": "Tema"
+	},
+	"readerTranscripts": {
+		"message": "Transkriptler"
+	},
+	"readerTypography": {
+		"message": "Tipografi"
+	},
+	"readerViewFullSize": {
+		"message": "Tam boyutta görüntüle"
 	},
 	"recommended": {
 		"message": "önerilen"
@@ -774,6 +918,9 @@
 	"systemDefault": {
 		"message": "Sistem"
 	},
+	"template": {
+		"message": "Şablon"
+	},
 	"templateCopied": {
 		"message": "Şablon JSON'u panoya kopyalandı"
 	},
@@ -785,6 +932,12 @@
 	},
 	"templateErrorsCount": {
 		"message": "Şablonunuzda $1 hata var."
+	},
+	"templateGroupContent": {
+		"message": "İçerik"
+	},
+	"templateGroupLocation": {
+		"message": "Konum"
 	},
 	"templateName": {
 		"message": "Şablon adı"

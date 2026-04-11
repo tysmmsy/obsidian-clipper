@@ -209,9 +209,6 @@
 	"embedded": {
 		"message": "Ingesloten"
 	},
-	"enableHighlighter": {
-		"message": "Markeerder inschakelen"
-	},
 	"enableHighlighterDescription": {
 		"message": "Markeer inhoud op webpagina's die je kunt opslaan in Obsidian."
 	},
@@ -356,6 +353,9 @@
 	},
 	"highlighter": {
 		"message": "Markeerder"
+	},
+	"highlighterOn": {
+		"message": "Markeerstift"
 	},
 	"highlighterSettings": {
 		"message": "Markeerder"
@@ -576,6 +576,9 @@
 	"prependToExisting": {
 		"message": "Toevoegen aan bestaande notitie, bovenaan"
 	},
+	"preview": {
+		"message": "Voorbeeld"
+	},
 	"processing": {
 		"message": "verwerken"
 	},
@@ -656,6 +659,147 @@
 	},
 	"reader": {
 		"message": "Lezer"
+	},
+	"readerAppearance": {
+		"message": "Weergave"
+	},
+	"readerAppearanceAuto": {
+		"message": "Automatisch"
+	},
+	"readerAppearanceDark": {
+		"message": "Donker"
+	},
+	"readerAppearanceDescription": {
+		"message": "Kies een lichte of donkere weergave."
+	},
+	"readerAppearanceLight": {
+		"message": "Licht"
+	},
+	"readerAutoScroll": {
+		"message": "Automatisch scrollen"
+	},
+	"readerAutoScrollDescription": {
+		"message": "Scroll de transcriptie automatisch mee om de weergave te volgen."
+	},
+	"readerBlendImages": {
+		"message": "Afbeeldingen mengen"
+	},
+	"readerBlendImagesDescription": {
+		"message": "Meng afbeeldingen met de pagina-achtergrond."
+	},
+	"readerCloseImageViewer": {
+		"message": "Afbeeldingenviewer sluiten"
+	},
+	"readerCollapseComment": {
+		"message": "Opmerking inklappen"
+	},
+	"readerColorLinks": {
+		"message": "Links kleuren"
+	},
+	"readerColorSchemeDefault": {
+		"message": "Standaard"
+	},
+	"readerCurrentPosition": {
+		"message": "Huidige positie"
+	},
+	"readerCustomCss": {
+		"message": "Aangepaste CSS"
+	},
+	"readerCustomCssDescription": {
+		"message": "CSS die automatisch wordt toegepast in leesweergave."
+	},
+	"readerDarkTheme": {
+		"message": "Thema voor donkere modus"
+	},
+	"readerDarkThemeDescription": {
+		"message": "Gebruik een ander thema in donkere modus."
+	},
+	"readerError": {
+		"message": "Kan inhoud niet extraheren."
+	},
+	"readerFont": {
+		"message": "Lettertype-opties"
+	},
+	"readerFontDefault": {
+		"message": "Standaard"
+	},
+	"readerFontDescription": {
+		"message": "Voeg lettertypen toe die op je systeem zijn geïnstalleerd. Druk op Enter om een lettertype toe te voegen."
+	},
+	"readerFontNotFound": {
+		"message": "Niet gevonden"
+	},
+	"readerFontPlaceholder": {
+		"message": "Druk op Enter om een lettertype toe te voegen"
+	},
+	"readerFontSetDefault": {
+		"message": "Als standaard instellen"
+	},
+	"readerFontSize": {
+		"message": "Basislettergrootte"
+	},
+	"readerFontSystem": {
+		"message": "Systeem"
+	},
+	"readerFontSystemSans": {
+		"message": "Sans-serif"
+	},
+	"readerFontSystemSerif": {
+		"message": "Serif"
+	},
+	"readerFonts": {
+		"message": "Lettertypen"
+	},
+	"readerFootnotes": {
+		"message": "Voetnoten"
+	},
+	"readerHighlightActiveLine": {
+		"message": "Actieve regel markeren"
+	},
+	"readerHighlightActiveLineDescription": {
+		"message": "Markeer tijdens het afspelen de huidige zin in de transcriptie."
+	},
+	"readerImages": {
+		"message": "Afbeeldingen"
+	},
+	"readerLineHeight": {
+		"message": "Regelhoogte"
+	},
+	"readerLineWidth": {
+		"message": "Regelbreedte"
+	},
+	"readerLoading": {
+		"message": "Bezig met ontrommelen…"
+	},
+	"readerOn": {
+		"message": "Leesmodus"
+	},
+	"readerPinPlayer": {
+		"message": "Speler vastzetten"
+	},
+	"readerPinPlayerDescription": {
+		"message": "Houd de videospeler zichtbaar terwijl je door de transcriptie scrolt."
+	},
+	"readerSettings": {
+		"message": "Lezerinstellingen"
+	},
+	"readerTheme": {
+		"message": "Thema"
+	},
+	"readerThemeDescription": {
+		"message": "Kies de kleuren die in leesweergave worden gebruikt."
+	},
+	"readerThemeSection": {
+		"message": "Thema"
+	},
+	"readerTranscripts": {
+		"message": "Transcripties"
+	},
+	"readerTypography": {
+		"message": "Typografie"
+	},
+	"readerViewFullSize": {
+		"message": "Op volledige grootte bekijken"
 	},
 	"recommended": {
 		"message": "aanbevolen"
@@ -774,6 +918,9 @@
 	"systemDefault": {
 		"message": "Systeem"
 	},
+	"template": {
+		"message": "Sjabloon"
+	},
 	"templateCopied": {
 		"message": "Sjabloon-JSON gekopieerd naar klembord"
 	},
@@ -785,6 +932,12 @@
 	},
 	"templateErrorsCount": {
 		"message": "Er staan $1 fouten in je sjabloon."
+	},
+	"templateGroupContent": {
+		"message": "Inhoud"
+	},
+	"templateGroupLocation": {
+		"message": "Locatie"
 	},
 	"templateName": {
 		"message": "Sjabloonnaam"

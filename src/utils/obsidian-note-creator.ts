@@ -1,14 +1,18 @@
 import browser from './browser-polyfill';
 import { sanitizeFileName } from '../utils/string-utils';
+import { generateFrontmatter as generateFrontmatterCore } from './shared';
 import { Template, Property } from '../types/types';
 import { generalSettings, incrementStat } from './storage-utils';
 import { copyToClipboard } from './clipboard-utils';
 import { getMessage } from './i18n';
-import { generateFrontmatter as generateFrontmatterCore } from './frontmatter';
 
 // Wrapper that passes generalSettings.propertyTypes for popup contexts
 export async function generateFrontmatter(properties: Property[]): Promise<string> {
-	return generateFrontmatterCore(properties, generalSettings.propertyTypes);
+	const typeMap: Record<string, string> = {};
+	for (const pt of generalSettings.propertyTypes) {
+		typeMap[pt.name] = pt.type;
+	}
+	return generateFrontmatterCore(properties, typeMap);
 }
 
 function openObsidianUrl(url: string): void {
@@ -23,8 +27,10 @@ function openObsidianUrl(url: string): void {
 
 async function tryClipboardWrite(fileContent: string, obsidianUrl: string): Promise<void> {
 	const success = await copyToClipboard(fileContent);
-	
+
 	if (success) {
+		// &clipboard tells Obsidian to read data from clipboard instead of the content param.
+		// content is a fallback shown only if Obsidian can't access the clipboard (e.g. on Linux).
 		obsidianUrl += `&clipboard&content=${encodeURIComponent(getMessage('clipboardError', 'https://help.obsidian.md/web-clipper/troubleshoot'))}`;
 		openObsidianUrl(obsidianUrl);
 		console.log('Obsidian URL:', obsidianUrl);

@@ -121,10 +121,10 @@
 		"message": "Quick clip"
 	},
 	"commandToggleHighlighter": {
-		"message": "Toggle highlighter mode"
+		"message": "Toggle highlighter"
 	},
 	"commandToggleReader": {
-		"message": "Toggle reading view"
+		"message": "Toggle reader"
 	},
 	"confirmDeleteTemplate": {
 		"message": "Are you sure you want to delete the template \"$1\"?"
@@ -169,10 +169,10 @@
 		"message": "Are you sure you want to delete this provider?"
 	},
 	"disableHighlighter": {
-		"message": "Disable highlighter"
+		"message": "Turn off highlighter"
 	},
 	"disableReader": {
-		"message": "Disable reading view"
+		"message": "Turn off reader"
 	},
 	"done": {
 		"message": "Done"
@@ -208,9 +208,6 @@
 	},
 	"embedded": {
 		"message": "Embedded"
-	},
-	"enableHighlighter": {
-		"message": "Enable highlighter"
 	},
 	"enableHighlighterDescription": {
 		"message": "Highlight content on web pages that you can save to Obsidian."
@@ -355,6 +352,9 @@
 		"message": "Highlight page"
 	},
 	"highlighter": {
+		"message": "Highlighter"
+	},
+	"highlighterOn": {
 		"message": "Highlighter"
 	},
 	"highlighterSettings": {
@@ -576,6 +576,9 @@
 	"prependToExisting": {
 		"message": "Add to an existing note, at the top"
 	},
+	"preview": {
+		"message": "Preview"
+	},
 	"processing": {
 		"message": "processing"
 	},
@@ -656,6 +659,147 @@
 	},
 	"reader": {
 		"message": "Reader"
+	},
+	"readerAppearance": {
+		"message": "Appearance"
+	},
+	"readerAppearanceAuto": {
+		"message": "Auto"
+	},
+	"readerAppearanceDark": {
+		"message": "Dark"
+	},
+	"readerAppearanceDescription": {
+		"message": "Choose light or dark appearance."
+	},
+	"readerAppearanceLight": {
+		"message": "Light"
+	},
+	"readerAutoScroll": {
+		"message": "Auto-scroll"
+	},
+	"readerAutoScrollDescription": {
+		"message": "Automatically scroll the transcript to follow playback."
+	},
+	"readerBlendImages": {
+		"message": "Blend images"
+	},
+	"readerBlendImagesDescription": {
+		"message": "Blend images with the page background."
+	},
+	"readerCloseImageViewer": {
+		"message": "Close image viewer"
+	},
+	"readerCollapseComment": {
+		"message": "Collapse comment"
+	},
+	"readerColorLinks": {
+		"message": "Color links"
+	},
+	"readerColorSchemeDefault": {
+		"message": "Default"
+	},
+	"readerCurrentPosition": {
+		"message": "Current position"
+	},
+	"readerCustomCss": {
+		"message": "Custom CSS"
+	},
+	"readerCustomCssDescription": {
+		"message": "CSS applied automatically in reading view."
+	},
+	"readerDarkTheme": {
+		"message": "Dark mode theme"
+	},
+	"readerDarkThemeDescription": {
+		"message": "Use a different theme in dark mode."
+	},
+	"readerError": {
+		"message": "Failed to extract content."
+	},
+	"readerFont": {
+		"message": "Font options"
+	},
+	"readerFontDefault": {
+		"message": "Default"
+	},
+	"readerFontDescription": {
+		"message": "Add fonts installed on your system. Press enter to add a font."
+	},
+	"readerFontNotFound": {
+		"message": "Not found"
+	},
+	"readerFontPlaceholder": {
+		"message": "Press enter to add a font"
+	},
+	"readerFontSetDefault": {
+		"message": "Set default"
+	},
+	"readerFontSize": {
+		"message": "Base font size"
+	},
+	"readerFontSystem": {
+		"message": "System"
+	},
+	"readerFontSystemSans": {
+		"message": "Sans-serif"
+	},
+	"readerFontSystemSerif": {
+		"message": "Serif"
+	},
+	"readerFonts": {
+		"message": "Fonts"
+	},
+	"readerFootnotes": {
+		"message": "Footnotes"
+	},
+	"readerHighlightActiveLine": {
+		"message": "Highlight active line"
+	},
+	"readerHighlightActiveLineDescription": {
+		"message": "Highlight the current sentence in the transcript during playback."
+	},
+	"readerImages": {
+		"message": "Images"
+	},
+	"readerLineHeight": {
+		"message": "Line height"
+	},
+	"readerLineWidth": {
+		"message": "Line width"
+	},
+	"readerLoading": {
+		"message": "Defuddling…"
+	},
+	"readerOn": {
+		"message": "Reader"
+	},
+	"readerPinPlayer": {
+		"message": "Pin player"
+	},
+	"readerPinPlayerDescription": {
+		"message": "Keep the video player visible while scrolling through the transcript."
+	},
+	"readerSettings": {
+		"message": "Reader settings"
+	},
+	"readerTheme": {
+		"message": "Theme"
+	},
+	"readerThemeDescription": {
+		"message": "Choose the colors used in reading view."
+	},
+	"readerThemeSection": {
+		"message": "Theme"
+	},
+	"readerTranscripts": {
+		"message": "Transcripts"
+	},
+	"readerTypography": {
+		"message": "Typography"
+	},
+	"readerViewFullSize": {
+		"message": "View full size"
 	},
 	"recommended": {
 		"message": "recommended"
@@ -774,6 +918,9 @@
 	"systemDefault": {
 		"message": "System"
 	},
+	"template": {
+		"message": "Template"
+	},
 	"templateCopied": {
 		"message": "Copied template JSON to clipboard"
 	},
@@ -785,6 +932,12 @@
 	},
 	"templateErrorsCount": {
 		"message": "There are $1 errors in your template."
+	},
+	"templateGroupContent": {
+		"message": "Content"
+	},
+	"templateGroupLocation": {
+		"message": "Location"
 	},
 	"templateName": {
 		"message": "Template name"

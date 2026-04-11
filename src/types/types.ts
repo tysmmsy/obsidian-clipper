@@ -56,8 +56,17 @@ export interface ReaderSettings {
 	fontSize: number;
 	lineHeight: number;
 	maxWidth: number;
-	theme: 'default' | 'flexoki';
-	themeMode: 'auto' | 'light' | 'dark';
+	lightTheme: string;
+	darkTheme: string;
+	appearance: 'auto' | 'light' | 'dark';
+	fonts: string[];
+	defaultFont: string;
+	blendImages: boolean;
+	colorLinks: boolean;
+	pinPlayer: boolean;
+	autoScroll: boolean;
+	highlightActiveLine: boolean;
+	customCss: string;
 }
 
 export interface Settings {
@@ -66,7 +75,7 @@ export interface Settings {
 	betaFeatures: boolean;
 	legacyMode: boolean;
 	silentOpen: boolean;
-	openBehavior: 'popup' | 'embedded';
+	openBehavior: 'popup' | 'embedded' | 'reader';
 	highlighterEnabled: boolean;
 	alwaysShowHighlights: boolean;
 	highlightBehavior: string;

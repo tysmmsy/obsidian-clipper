@@ -209,9 +209,6 @@
 	"embedded": {
 		"message": "Incrustado"
 	},
-	"enableHighlighter": {
-		"message": "Activar resaltador"
-	},
 	"enableHighlighterDescription": {
 		"message": "Resalta contenido en páginas web que puedes guardar en Obsidian."
 	},
@@ -355,6 +352,9 @@
 		"message": "Resaltar página"
 	},
 	"highlighter": {
+		"message": "Resaltador"
+	},
+	"highlighterOn": {
 		"message": "Resaltador"
 	},
 	"highlighterSettings": {
@@ -576,6 +576,9 @@
 	"prependToExisting": {
 		"message": "Agregar a una nota existente, al principio"
 	},
+	"preview": {
+		"message": "Vista previa"
+	},
 	"processing": {
 		"message": "procesando"
 	},
@@ -656,6 +659,147 @@
 	},
 	"reader": {
 		"message": "Lector"
+	},
+	"readerAppearance": {
+		"message": "Apariencia"
+	},
+	"readerAppearanceAuto": {
+		"message": "Automático"
+	},
+	"readerAppearanceDark": {
+		"message": "Oscuro"
+	},
+	"readerAppearanceDescription": {
+		"message": "Elige apariencia clara u oscura."
+	},
+	"readerAppearanceLight": {
+		"message": "Claro"
+	},
+	"readerAutoScroll": {
+		"message": "Desplazamiento automático"
+	},
+	"readerAutoScrollDescription": {
+		"message": "Desplaza automáticamente la transcripción para seguir la reproducción."
+	},
+	"readerBlendImages": {
+		"message": "Mezclar imágenes"
+	},
+	"readerBlendImagesDescription": {
+		"message": "Mezcla las imágenes con el fondo de la página."
+	},
+	"readerCloseImageViewer": {
+		"message": "Cerrar visor de imágenes"
+	},
+	"readerCollapseComment": {
+		"message": "Contraer comentario"
+	},
+	"readerColorLinks": {
+		"message": "Colorear enlaces"
+	},
+	"readerColorSchemeDefault": {
+		"message": "Predeterminado"
+	},
+	"readerCurrentPosition": {
+		"message": "Posición actual"
+	},
+	"readerCustomCss": {
+		"message": "CSS personalizado"
+	},
+	"readerCustomCssDescription": {
+		"message": "CSS aplicado automáticamente en la vista de lectura."
+	},
+	"readerDarkTheme": {
+		"message": "Tema del modo oscuro"
+	},
+	"readerDarkThemeDescription": {
+		"message": "Usa un tema diferente en el modo oscuro."
+	},
+	"readerError": {
+		"message": "No se pudo extraer el contenido."
+	},
+	"readerFont": {
+		"message": "Opciones de fuente"
+	},
+	"readerFontDefault": {
+		"message": "Predeterminado"
+	},
+	"readerFontDescription": {
+		"message": "Añade fuentes instaladas en tu sistema. Pulsa Intro para añadir una fuente."
+	},
+	"readerFontNotFound": {
+		"message": "No encontrado"
+	},
+	"readerFontPlaceholder": {
+		"message": "Pulsa Intro para añadir una fuente"
+	},
+	"readerFontSetDefault": {
+		"message": "Establecer como predeterminado"
+	},
+	"readerFontSize": {
+		"message": "Tamaño de fuente base"
+	},
+	"readerFontSystem": {
+		"message": "Sistema"
+	},
+	"readerFontSystemSans": {
+		"message": "Sans-serif"
+	},
+	"readerFontSystemSerif": {
+		"message": "Serif"
+	},
+	"readerFonts": {
+		"message": "Fuentes"
+	},
+	"readerFootnotes": {
+		"message": "Notas al pie"
+	},
+	"readerHighlightActiveLine": {
+		"message": "Resaltar línea activa"
+	},
+	"readerHighlightActiveLineDescription": {
+		"message": "Resalta la frase actual en la transcripción durante la reproducción."
+	},
+	"readerImages": {
+		"message": "Imágenes"
+	},
+	"readerLineHeight": {
+		"message": "Altura de línea"
+	},
+	"readerLineWidth": {
+		"message": "Ancho de línea"
+	},
+	"readerLoading": {
+		"message": "Simplificando…"
+	},
+	"readerOn": {
+		"message": "Modo lectura"
+	},
+	"readerPinPlayer": {
+		"message": "Fijar reproductor"
+	},
+	"readerPinPlayerDescription": {
+		"message": "Mantén el reproductor de vídeo visible mientras te desplazas por la transcripción."
+	},
+	"readerSettings": {
+		"message": "Ajustes del lector"
+	},
+	"readerTheme": {
+		"message": "Tema"
+	},
+	"readerThemeDescription": {
+		"message": "Elige los colores usados en la vista de lectura."
+	},
+	"readerThemeSection": {
+		"message": "Tema"
+	},
+	"readerTranscripts": {
+		"message": "Transcripciones"
+	},
+	"readerTypography": {
+		"message": "Tipografía"
+	},
+	"readerViewFullSize": {
+		"message": "Ver a tamaño completo"
 	},
 	"recommended": {
 		"message": "recomendado"
@@ -774,6 +918,9 @@
 	"systemDefault": {
 		"message": "Sistema"
 	},
+	"template": {
+		"message": "Plantilla"
+	},
 	"templateCopied": {
 		"message": "Se copió el JSON de la plantilla al portapapeles"
 	},
@@ -785,6 +932,12 @@
 	},
 	"templateErrorsCount": {
 		"message": "Hay $1 errores en tu plantilla."
+	},
+	"templateGroupContent": {
+		"message": "Contenido"
+	},
+	"templateGroupLocation": {
+		"message": "Ubicación"
 	},
 	"templateName": {
 		"message": "Nombre de la plantilla"

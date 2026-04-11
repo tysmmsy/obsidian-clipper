@@ -3,33 +3,66 @@ import * as highlighter from './utils/highlighter';
 import { loadSettings, generalSettings } from './utils/storage-utils';
 import Defuddle from 'defuddle';
 import { getDomain } from './utils/string-utils';
-import { createMarkdownContent } from './utils/markdown-converter';
+import { extractContentBySelector as extractContentBySelectorShared } from './utils/shared';
+import { createMarkdownContent } from 'defuddle/full';
+import { flattenShadowDom } from './utils/flatten-shadow-dom';
+import { saveFile } from './utils/file-utils';
+import { debugLog } from './utils/debug';
 
 declare global {
 	interface Window {
-		obsidianHighlighterInitialized?: boolean;
+		obsidianClipperGeneration?: number;
 	}
 }
 
-// Use a self-executing function to create a closure
-// This allows the script to be re-executed without redeclaring variables
+// IIFE to scope variables and allow safe re-execution
 (function() {
-	// Check if the script has already been initialized
-	if (window.hasOwnProperty('obsidianHighlighterInitialized')) {
-		return;  // Exit if already initialized
-	}
+	// Bump the generation counter on every injection. Older listeners close
+	// over their own generation value and bail out when they see a newer one,
+	// so a zombie content script (runtime invalidated after extension update)
+	// will silently yield to the freshly-injected instance.
+	window.obsidianClipperGeneration = (window.obsidianClipperGeneration ?? 0) + 1;
+	const myGeneration = window.obsidianClipperGeneration;
 
-	// Mark as initialized
-	window.obsidianHighlighterInitialized = true;
+	debugLog('Clipper', 'Initializing content script, generation', myGeneration);
+
+	// In Reader mode, extract from the article's original HTML (before
+	// wireTranscript restructures it) with a neutral URL so site-specific
+	// extractors don't re-fetch content (e.g. YouTube)
+	function parseForClip(doc: Document) {
+		const readerArticle = doc.querySelector('.obsidian-reader-active .obsidian-reader-content article');
+		if (readerArticle) {
+			const readerDoc = doc.implementation.createHTMLDocument();
+			const originalHtml = readerArticle.getAttribute('data-original-html');
+			readerDoc.body.innerHTML = originalHtml || readerArticle.innerHTML;
+			return new Defuddle(readerDoc, { url: '' }).parse();
+		}
+		return new Defuddle(doc, { url: doc.URL }).parse();
+	}
 
 	let isHighlighterMode = false;
 	const iframeId = 'obsidian-clipper-iframe';
 	const containerId = 'obsidian-clipper-container';
 
+	let sidebarWidthRaf: number | null = null;
+
+	function updateSidebarWidth(container: HTMLElement | null) {
+		if (sidebarWidthRaf) cancelAnimationFrame(sidebarWidthRaf);
+		sidebarWidthRaf = requestAnimationFrame(() => {
+			if (container && document.contains(container)) {
+				document.documentElement.style.setProperty('--clipper-sidebar-width', `${container.offsetWidth + 24}px`);
+			} else {
+				document.documentElement.style.removeProperty('--clipper-sidebar-width');
+			}
+		});
+	}
+
 	function removeContainer(container: HTMLElement) {
 		container.classList.add('is-closing');
+		updateSidebarWidth(null);
 		container.addEventListener('animationend', () => {
 			container.remove();
+			highlighter.repositionHighlights();
 		}, { once: true });
 	}
 
@@ -39,6 +72,8 @@ declare global {
 			removeContainer(existingContainer);
 			return;
 		}
+
+		await ensureHighlighterCSS();
 
 		const container = document.createElement('div');
 		container.id = containerId;
@@ -74,6 +109,10 @@ declare global {
 		addResizeListener(container, southWestHandle, 'sw');
 
 		document.body.appendChild(container);
+		updateSidebarWidth(container);
+		container.addEventListener('animationend', () => {
+			highlighter.repositionHighlights();
+		}, { once: true });
 	}
 
 	function addResizeListener(container: HTMLElement, handle: HTMLElement, direction: string) {
@@ -97,13 +136,13 @@ declare global {
 	
 			document.onmousemove = (moveEvent) => {
 				if (!isResizing) return;
-	
+
 				const dx = moveEvent.clientX - startX;
 				const dy = moveEvent.clientY - startY;
 
 				const minWidth = parseInt(container.style.minWidth) || 200;
 				const minHeight = parseInt(container.style.minHeight) || 200;
-	
+
 				if (direction.includes('e')) {
 					let newWidth = startWidth + dx;
 					if (newWidth < minWidth) newWidth = minWidth;
@@ -131,6 +170,8 @@ declare global {
 					container.style.height = `${newHeight}px`;
 					container.style.top = `${newTop}px`;
 				}
+
+				updateSidebarWidth(container);
 			};
 	
 			document.onmouseup = () => {
@@ -142,6 +183,8 @@ declare global {
 				const newWidth = container.offsetWidth;
 				const newHeight = container.offsetHeight;
 				browser.storage.local.set({ clipperIframeWidth: newWidth, clipperIframeHeight: newHeight });
+
+				highlighter.repositionHighlights();
 
 				document.onmousemove = null;
 				document.onmouseup = null;
@@ -169,10 +212,17 @@ declare global {
 		author: string;
 		site: string;
 		wordCount: number;
+		language: string;
 		metaTags: { name?: string | null; property?: string | null; content: string | null }[];
 	}
 
 	browser.runtime.onMessage.addListener((request: any, sender, sendResponse) => {
+		// If a newer generation of this content script has been injected,
+		// yield to it rather than responding from a potentially stale context.
+		if (window.obsidianClipperGeneration !== myGeneration) {
+			return;
+		}
+
 		if (request.action === "ping") {
 			sendResponse({});
 			return true;
@@ -209,113 +259,151 @@ declare global {
 		}
 
 		if (request.action === "copyMarkdownToClipboard") {
-			try {
-				// Extract page content using Defuddle
-				const defuddled = new Defuddle(document, { url: document.URL }).parse();
+			flattenShadowDom(document).then(() => {
+				try {
+					const defuddled = parseForClip(document);
 
-				// Convert HTML content to markdown
-				const markdown = createMarkdownContent(defuddled.content, document.URL);
+					// Convert HTML content to markdown
+					const markdown = createMarkdownContent(defuddled.content, document.URL);
 
-				// Copy to clipboard
-				const textArea = document.createElement("textarea");
-				textArea.value = markdown;
-				document.body.appendChild(textArea);
-				textArea.select();
-				document.execCommand('copy');
-				document.body.removeChild(textArea);
+					// Copy to clipboard
+					const textArea = document.createElement("textarea");
+					textArea.value = markdown;
+					document.body.appendChild(textArea);
+					textArea.select();
+					document.execCommand('copy');
+					document.body.removeChild(textArea);
 
-				sendResponse({ success: true });
-			} catch (err) {
-				console.error('Failed to copy markdown to clipboard:', err);
-				sendResponse({ success: false, error: (err as Error).message });
-			}
+					sendResponse({ success: true });
+				} catch (err) {
+					console.error('Failed to copy markdown to clipboard:', err);
+					sendResponse({ success: false, error: (err as Error).message });
+				}
+			});
+			return true;
+		}
+
+		if (request.action === "saveMarkdownToFile") {
+			flattenShadowDom(document).then(async () => {
+				try {
+					const defuddled = parseForClip(document);
+					const markdown = createMarkdownContent(defuddled.content, document.URL);
+					const title = defuddled.title || document.title || 'Untitled';
+					const fileName = title.replace(/[/\\?%*:|"<>]/g, '-');
+					await saveFile({
+						content: markdown,
+						fileName,
+						mimeType: 'text/markdown',
+					});
+					sendResponse({ success: true });
+				} catch (err) {
+					console.error('Failed to save markdown file:', err);
+					sendResponse({ success: false, error: (err as Error).message });
+				}
+			});
 			return true;
 		}
 
 		if (request.action === "getPageContent") {
-			let selectedHtml = '';
-			const selection = window.getSelection();
-			
-			if (selection && selection.rangeCount > 0) {
-				const range = selection.getRangeAt(0);
-				const clonedSelection = range.cloneContents();
-				const div = document.createElement('div');
-				div.appendChild(clonedSelection);
-				selectedHtml = div.innerHTML;
-			}
+			// Flatten shadow DOM before extraction (async, needs main world)
+			const flattenTimeout = new Promise<void>(resolve => setTimeout(resolve, 3000));
+			Promise.race([flattenShadowDom(document), flattenTimeout]).then(async () => {
+				let selectedHtml = '';
+				const selection = window.getSelection();
 
-			const extractedContent: { [key: string]: string } = {};
+				if (selection && selection.rangeCount > 0) {
+					const range = selection.getRangeAt(0);
+					const clonedSelection = range.cloneContents();
+					const div = document.createElement('div');
+					div.appendChild(clonedSelection);
+					selectedHtml = div.innerHTML;
+				}
 
-			// Process with Defuddle first while we have access to the document
-			const defuddled = new Defuddle(document, { url: document.URL }).parse();
+				// Use parseAsync to ensure async variables like {{transcript}} are available.
+				// If it hangs (e.g. another extension has corrupted fetch), fall back to sync parse.
+				const defuddle = new Defuddle(document, { url: document.URL });
+				const parseTimeout = new Promise<never>((_, reject) =>
+					setTimeout(() => reject(new Error('parseAsync timeout')), 8000)
+				);
+				const defuddled = await Promise.race([defuddle.parseAsync(), parseTimeout])
+					.catch(() => defuddle.parse());
+				const extractedContent: { [key: string]: string } = {
+					...defuddled.variables,
+				};
 
-			// Create a new DOMParser
-			const parser = new DOMParser();
-			// Parse the document's HTML
-			const doc = parser.parseFromString(document.documentElement.outerHTML, 'text/html');
+				// Create a new DOMParser
+				const parser = new DOMParser();
+				// Parse the document's HTML
+				const doc = parser.parseFromString(document.documentElement.outerHTML, 'text/html');
 
-			// Remove all script and style elements
-			doc.querySelectorAll('script, style').forEach(el => el.remove());
+				// Remove all script and style elements
+				doc.querySelectorAll('script, style').forEach(el => el.remove());
 
-			// Remove style attributes from all elements
-			doc.querySelectorAll('*').forEach(el => el.removeAttribute('style'));
+				// Remove style attributes from all elements
+				doc.querySelectorAll('*').forEach(el => el.removeAttribute('style'));
 
-			// Convert all relative URLs to absolute
-			doc.querySelectorAll('[src], [href]').forEach(element => {
-				['src', 'href', 'srcset'].forEach(attr => {
-					const value = element.getAttribute(attr);
-					if (!value) return;
-					
-					if (attr === 'srcset') {
-						const newSrcset = value.split(',').map(src => {
-							const [url, size] = src.trim().split(' ');
+				// Convert all relative URLs to absolute
+				doc.querySelectorAll('[src], [href]').forEach(element => {
+					['src', 'href', 'srcset'].forEach(attr => {
+						const value = element.getAttribute(attr);
+						if (!value) return;
+
+						if (attr === 'srcset') {
+							const newSrcset = value.split(',').map(src => {
+								const [url, size] = src.trim().split(' ');
+								try {
+									const absoluteUrl = new URL(url, document.baseURI).href;
+									return `${absoluteUrl}${size ? ' ' + size : ''}`;
+								} catch (e) {
+									return src;
+								}
+							}).join(', ');
+							element.setAttribute(attr, newSrcset);
+						} else if (!value.startsWith('http') && !value.startsWith('data:') && !value.startsWith('#') && !value.startsWith('//')) {
 							try {
-								const absoluteUrl = new URL(url, document.baseURI).href;
-								return `${absoluteUrl}${size ? ' ' + size : ''}`;
+								const absoluteUrl = new URL(value, document.baseURI).href;
+								element.setAttribute(attr, absoluteUrl);
 							} catch (e) {
-								return src;
+								console.warn(`Failed to process ${attr} URL:`, value);
 							}
-						}).join(', ');
-						element.setAttribute(attr, newSrcset);
-					} else if (!value.startsWith('http') && !value.startsWith('data:') && !value.startsWith('#') && !value.startsWith('//')) {
-						try {
-							const absoluteUrl = new URL(value, document.baseURI).href;
-							element.setAttribute(attr, absoluteUrl);
-						} catch (e) {
-							console.warn(`Failed to process ${attr} URL:`, value);
 						}
-					}
+					});
 				});
+
+				// Get the modified HTML without scripts, styles, and style attributes
+				const cleanedHtml = doc.documentElement.outerHTML;
+
+				const response: ContentResponse = {
+					author: defuddled.author,
+					content: defuddled.content,
+					description: defuddled.description,
+					domain: getDomain(document.URL),
+					extractedContent: extractedContent,
+					favicon: defuddled.favicon,
+					fullHtml: cleanedHtml,
+					highlights: highlighter.getHighlights(),
+					image: defuddled.image,
+					language: defuddled.language || '',
+					parseTime: defuddled.parseTime,
+					published: defuddled.published,
+					schemaOrgData: defuddled.schemaOrgData,
+					selectedHtml: selectedHtml,
+					site: defuddled.site,
+					title: defuddled.title,
+					wordCount: defuddled.wordCount,
+					metaTags: defuddled.metaTags || []
+				};
+				sendResponse(response);
+			}).catch((error: unknown) => {
+				console.error('[Obsidian Clipper] getPageContent error:', error);
+				sendResponse({ success: false, error: error instanceof Error ? error.message : String(error) });
 			});
-
-			// Get the modified HTML without scripts, styles, and style attributes
-			const cleanedHtml = doc.documentElement.outerHTML;
-
-			const response: ContentResponse = {
-				author: defuddled.author,
-				content: defuddled.content,
-				description: defuddled.description,
-				domain: getDomain(document.URL),
-				extractedContent: extractedContent,
-				favicon: defuddled.favicon,
-				fullHtml: cleanedHtml,
-				highlights: highlighter.getHighlights(),
-				image: defuddled.image,
-				parseTime: defuddled.parseTime,
-				published: defuddled.published,
-				schemaOrgData: defuddled.schemaOrgData,
-				selectedHtml: selectedHtml,
-				site: defuddled.site,
-				title: defuddled.title,
-				wordCount: defuddled.wordCount,
-				metaTags: defuddled.metaTags || []
-			};
-			sendResponse(response);
+			return true;
 		} else if (request.action === "extractContent") {
 			const content = extractContentBySelector(request.selector, request.attribute, request.extractHtml);
 			sendResponse({ content: content });
 		} else if (request.action === "paintHighlights") {
-			highlighter.loadHighlights().then(() => {
+			ensureHighlighterCSS().then(() => highlighter.loadHighlights()).then(() => {
 				if (generalSettings.alwaysShowHighlights) {
 					highlighter.applyHighlights();
 				}
@@ -324,6 +412,7 @@ declare global {
 			return true;
 		} else if (request.action === "setHighlighterMode") {
 			isHighlighterMode = request.isActive;
+			ensureHighlighterCSS();
 			highlighter.toggleHighlighterMenu(isHighlighterMode);
 			updateHasHighlights();
 			sendResponse({ success: true });
@@ -332,10 +421,12 @@ declare global {
 			browser.runtime.sendMessage({ action: "getHighlighterMode" }).then(sendResponse);
 			return true;
 		} else if (request.action === "toggleHighlighter") {
+			ensureHighlighterCSS();
 			highlighter.toggleHighlighterMenu(request.isActive);
 			updateHasHighlights();
 			sendResponse({ success: true });
 		} else if (request.action === "highlightSelection") {
+			ensureHighlighterCSS();
 			highlighter.toggleHighlighterMenu(request.isActive);
 			const selection = window.getSelection();
 			if (selection && !selection.isCollapsed) {
@@ -344,6 +435,7 @@ declare global {
 			updateHasHighlights();
 			sendResponse({ success: true });
 		} else if (request.action === "highlightElement") {
+			ensureHighlighterCSS();
 			highlighter.toggleHighlighterMenu(request.isActive);
 			if (request.targetElementInfo) {
 				const { mediaType, srcUrl, pageUrl } = request.targetElementInfo;
@@ -402,43 +494,15 @@ declare global {
 					sendResponse({ isActive: false });
 				});
 			return true;
-		} else if (request.action === "toggleReaderMode") {
-			// Forward the request to the background script to inject reader mode if needed
-			browser.runtime.sendMessage({ action: "toggleReaderMode", tabId: sender.tab?.id })
-				.then(sendResponse)
-				.catch(error => {
-					console.error("Error toggling reader mode:", error);
-					sendResponse({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
-				});
+		} else if (request.action === "getReaderModeState") {
+			sendResponse({ isActive: document.documentElement.classList.contains('obsidian-reader-active') });
 			return true;
 		}
 		return true;
 	});
 
 	function extractContentBySelector(selector: string, attribute?: string, extractHtml: boolean = false): string | string[] {
-		try {
-			const elements = document.querySelectorAll(selector);
-			
-			if (elements.length > 1) {
-				return Array.from(elements).map(el => {
-					if (attribute) {
-						return el.getAttribute(attribute) || '';
-					}
-					return extractHtml ? el.outerHTML : el.textContent?.trim() || '';
-				});
-			} else if (elements.length === 1) {
-				if (attribute) {
-					return elements[0].getAttribute(attribute) || '';
-				}
-				return extractHtml ? elements[0].outerHTML : elements[0].textContent?.trim() || '';
-			} else {
-				console.log(`No elements found for selector: ${selector}`);
-				return '';
-			}
-		} catch (error) {
-			console.error('Error in extractContentBySelector:', error, { selector, attribute, extractHtml });
-			return '';
-		}
+		return extractContentBySelectorShared(document, selector, attribute, extractHtml);
 	}
 
 	function updateHasHighlights() {
@@ -446,14 +510,33 @@ declare global {
 		browser.runtime.sendMessage({ action: "updateHasHighlights", hasHighlights });
 	}
 
+	let highlighterCSSPromise: Promise<void> | null = null;
+	function ensureHighlighterCSS(): Promise<void> {
+		if (!highlighterCSSPromise) {
+			highlighterCSSPromise = new Promise<void>((resolve) => {
+				const link = document.createElement('link');
+				link.rel = 'stylesheet';
+				link.href = browser.runtime.getURL('highlighter.css');
+				link.onload = () => resolve();
+				link.onerror = () => resolve();
+				(document.head || document.documentElement).appendChild(link);
+			});
+		}
+		return highlighterCSSPromise;
+	}
+
 	async function initializeHighlighter() {
 		await loadSettings();
-		await highlighter.loadHighlights();
-		
+
 		if (generalSettings.alwaysShowHighlights) {
-			highlighter.applyHighlights();
+			const result = await browser.storage.local.get('highlights');
+			const allHighlights = (result.highlights || {}) as Record<string, unknown>;
+			if (allHighlights[window.location.href]) {
+				await ensureHighlighterCSS();
+			}
 		}
-		
+
+		await highlighter.loadHighlights();
 		updateHasHighlights();
 	}
 
